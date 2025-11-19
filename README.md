@@ -102,7 +102,7 @@ outputs = estimator.process_one_image("path/to/image.jpg")
 You can also run our demo script for model inference and visualization:
 ```bash
 # Download assets from HuggingFace
-huggingface-cli download facebook/sam-3d-body-dinov3 --local-dir checkpoints/sam-3d-body-dinov3
+hf download facebook/sam-3d-body-dinov3 --local-dir checkpoints/sam-3d-body-dinov3
 
 # Run demo script
 python demo.py \
@@ -111,8 +111,6 @@ python demo.py \
     --checkpoint_path ./checkpoints/sam-3d-body-dinov3/model.ckpt \
     --mhr_path ./checkpoints/sam-3d-body-dinov3/assets/mhr_model.pt
 ```
-
-
 
 For a complete demo with visualization, see [notebook/demo_human.ipynb](notebook/demo_human.ipynb).
 
