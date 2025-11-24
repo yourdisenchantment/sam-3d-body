@@ -217,7 +217,7 @@ def get_data_device(data: Union[Tensor, Mapping, Iterable]) -> torch.device:
         return pre
     else:
         raise TypeError(
-            "data should be a Tensor, sequence of tensor or dict, " f"but got {data}"
+            f"data should be a Tensor, sequence of tensor or dict, but got {data}"
         )
 
 
@@ -356,7 +356,7 @@ def cast_data_device(
         return type(data)(data_on_device)  # type: ignore
     else:
         raise TypeError(
-            "data should be a Tensor, list of tensor or dict, " f"but got {data}"
+            f"data should be a Tensor, list of tensor or dict, but got {data}"
         )
 
 

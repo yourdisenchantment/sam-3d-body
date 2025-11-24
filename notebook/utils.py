@@ -3,7 +3,7 @@ Utility functions for SAM 3D Body demo notebook
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import cv2
 import matplotlib.pyplot as plt
@@ -85,7 +85,7 @@ def setup_sam_3d_body(
         fov_estimator=fov_estimator,
     )
 
-    print(f"Setup complete!")
+    print("Setup complete!")
     print(
         f"  Human detector: {'✓' if human_detector else '✗ (will use full image or manual bbox)'}"
     )

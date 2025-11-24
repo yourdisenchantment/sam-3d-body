@@ -15,16 +15,17 @@ class HumanSegmentor:
 
         else:
             raise NotImplementedError
-    
+
     def run_sam(self, img, boxes, **kwargs):
         return self.sam_func(self.sam, img, boxes)
-        
+
 
 def load_sam2(device, path):
     checkpoint = f"{path}/checkpoints/sam2.1_hiera_large.pt"
     model_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
 
     import sys
+
     sys.path.append(path)
     from sam2.build_sam import build_sam2
     from sam2.sam2_image_predictor import SAM2ImagePredictor
@@ -60,6 +61,5 @@ def run_sam2(sam_predictor, img, boxes):
             # cv2.imwrite(os.path.join(save_dir, f"{os.path.basename(image_path)[:-4]}_mask_{i}.jpg"), (mask_1 * 255).astype(np.uint8))
         all_masks = np.stack(all_masks)
         all_scores = np.stack(all_scores)
-    
+
     return all_masks, all_scores
-        

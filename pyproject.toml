@@ -1,0 +1,20 @@
+[project]
+name = "sam-3d-body"
+version = "0.1.0"
+description = "sam-3d-body for local launch"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["sam_3d_body"]
+
+[dependency-groups]
+dev = [
+    "black[jupyter]>=25.11.0",
+    "ruff>=0.14.6",
+]

@@ -34,7 +34,6 @@ except:
 
 
 class MHRHead(nn.Module):
-
     def __init__(
         self,
         input_dim: int,
@@ -177,7 +176,6 @@ class MHRHead(nn.Module):
         scale_offsets=None,
         vertex_offsets=None,
     ):
-
         if self.enable_hand_model:
             # Transfer wrist-centric predictions to the body.
             global_rot_ori = global_rot.clone()

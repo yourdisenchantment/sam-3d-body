@@ -1,15 +1,9 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
-import json
-import math
-import os.path as osp
-import pickle
 
 import cv2
 
-import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 
@@ -305,9 +299,9 @@ def compact_cont_to_rotmat_body(body_pose_cont, inflate_trans=False):
     body_cont_1dofs = body_cont_1dofs.unflatten(-1, (-1, 2))  # (sincos)
     body_rotmat_1dofs = batch4Dfrom2D(body_cont_1dofs).flatten(-2, -1)
     if inflate_trans:
-        assert (
-            False
-        ), "This is left as a possibility to increase the space/contribution/supervision trans params gets compared to rots"
+        assert False, (
+            "This is left as a possibility to increase the space/contribution/supervision trans params gets compared to rots"
+        )
     else:
         ## Nothing to do for trans
         body_rotmat_trans = body_cont_trans

@@ -288,7 +288,6 @@ class FlashAttention(nn.Module):
 
 
 class Block(nn.Module):
-
     def __init__(
         self,
         dim,
@@ -461,7 +460,6 @@ class HybridEmbed(nn.Module):
 
 
 class ViT(nn.Module):
-
     def __init__(
         self,
         img_size=224,

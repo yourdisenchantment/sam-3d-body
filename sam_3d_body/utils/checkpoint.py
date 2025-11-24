@@ -21,7 +21,6 @@ class CheckpointCallback(pl.callbacks.ModelCheckpoint):
 class _IncompatibleKeys(
     namedtuple("IncompatibleKeys", ["missing_keys", "unexpected_keys"])
 ):
-
     def __repr__(self):
         if not self.missing_keys and not self.unexpected_keys:
             return "<All keys matched successfully>"
@@ -102,11 +101,11 @@ def load_state_dict(module, state_dict, strict=False, logger=None):
 
     if unexpected_keys:
         err_msg.append(
-            "unexpected key in source " f'state_dict: {", ".join(unexpected_keys)}\n'
+            f"unexpected key in source state_dict: {', '.join(unexpected_keys)}\n"
         )
     if missing_keys:
         err_msg.append(
-            f'missing keys in source state_dict: {", ".join(missing_keys)}\n'
+            f"missing keys in source state_dict: {', '.join(missing_keys)}\n"
         )
 
     if len(err_msg) > 0:

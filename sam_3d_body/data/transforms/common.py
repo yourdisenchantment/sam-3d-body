@@ -6,11 +6,10 @@ import cv2
 import numpy as np
 import torch.nn as nn
 import torchvision.transforms.functional as F
-from PIL import Image, ImageOps
+from PIL import Image
 from sam_3d_body.models.modules import to_2tuple
 
 from .bbox_utils import (
-    bbox_cs2xyxy,
     bbox_xywh2cs,
     bbox_xyxy2cs,
     fix_aspect_ratio,
@@ -273,7 +272,7 @@ class TopdownAffine(nn.Module):
         if results["bbox_center"].ndim == 2:
             assert results["bbox_center"].shape[0] == 1, (
                 "Only support cropping one instance at a time. Got invalid "
-                f'shape of bbox_center {results["bbox_center"].shape}.'
+                f"shape of bbox_center {results['bbox_center'].shape}."
             )
             center = results["bbox_center"][0]
             scale = results["bbox_scale"][0]

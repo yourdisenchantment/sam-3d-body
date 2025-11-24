@@ -23,7 +23,7 @@ def get_anno_key(row: Dict[str, Any]):
     elif dataset == "egohumans":
         seq, subseq, cam, img_idx = img_name[:-4].split("/")
         person_idx = int(row["person_id"])
-        person = f"aira{person_idx+1:02}"
+        person = f"aira{person_idx + 1:02}"
         return "-".join([dataset, seq, subseq, person, cam, img_idx])
     elif dataset == "3dpw":
         seq, img_idx = img_name[:-4].split("/")

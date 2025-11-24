@@ -138,9 +138,9 @@ class SAM3DBodyEstimator:
         if masks is not None:
             # Use provided masks - ensure they match the number of detected boxes
             print(f"Using provided masks: {masks.shape}")
-            assert (
-                bboxes is not None
-            ), "Mask-conditioned inference requires bboxes input!"
+            assert bboxes is not None, (
+                "Mask-conditioned inference requires bboxes input!"
+            )
             masks = masks.reshape(-1, height, width, 1).astype(np.uint8)
             masks_score = np.ones(
                 len(masks), dtype=np.float32

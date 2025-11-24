@@ -198,12 +198,12 @@ def flip_bbox(
     """
     direction_options = {"horizontal", "vertical", "diagonal"}
     assert direction in direction_options, (
-        f'Invalid flipping direction "{direction}". ' f"Options are {direction_options}"
+        f'Invalid flipping direction "{direction}". Options are {direction_options}'
     )
 
     format_options = {"xywh", "xyxy", "center"}
     assert bbox_format in format_options, (
-        f'Invalid bbox format "{bbox_format}". ' f"Options are {format_options}"
+        f'Invalid bbox format "{bbox_format}". Options are {format_options}'
     )
 
     bbox_flipped = bbox.copy()

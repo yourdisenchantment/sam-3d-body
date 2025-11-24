@@ -16,7 +16,7 @@ import cv2
 import numpy as np
 import torch
 from sam_3d_body import load_sam_3d_body, SAM3DBodyEstimator
-from tools.vis_utils import visualize_sample, visualize_sample_together
+from tools.vis_utils import visualize_sample_together
 from tqdm import tqdm
 
 

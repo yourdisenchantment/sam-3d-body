@@ -1,13 +1,10 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 import os
-from pathlib import Path
 
-import _init_paths
 
 import cv2
 import numpy as np
 
-import os
 
 import pandas as pd
 from tqdm.auto import tqdm
@@ -81,9 +78,9 @@ def undistort_exocam_info(image, intrinsics, distortion_coeffs, scale=1):
     DIM = image.shape[:2][::-1]  # dim1 is the dimension of input image to un-distort
     dim1 = (int(DIM[0] * scale), int(DIM[1] * scale))
 
-    assert (
-        dim1[0] / dim1[1] == DIM[0] / DIM[1]
-    ), "Image to undistort needs to have same aspect ratio as the ones used in calibration"
+    assert dim1[0] / dim1[1] == DIM[0] / DIM[1], (
+        "Image to undistort needs to have same aspect ratio as the ones used in calibration"
+    )
     if not dim2:
         dim2 = dim1
     if not dim3:
@@ -114,9 +111,9 @@ def undistort_exocam(image, intrinsics, distortion_coeffs, scale=1):
     DIM = image.shape[:2][::-1]  # dim1 is the dimension of input image to un-distort
     dim1 = (int(DIM[0] * scale), int(DIM[1] * scale))
 
-    assert (
-        dim1[0] / dim1[1] == DIM[0] / DIM[1]
-    ), "Image to undistort needs to have same aspect ratio as the ones used in calibration"
+    assert dim1[0] / dim1[1] == DIM[0] / DIM[1], (
+        "Image to undistort needs to have same aspect ratio as the ones used in calibration"
+    )
     if not dim2:
         dim2 = dim1
     if not dim3:

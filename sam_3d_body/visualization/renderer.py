@@ -132,7 +132,6 @@ def create_raymond_lights() -> List[pyrender.Node]:
 
 
 class Renderer:
-
     def __init__(self, focal_length, faces=None):
         """
         Wrapper around the pyrender renderer to render meshes.
@@ -298,7 +297,6 @@ class Renderer:
         scene_bg_color=(0, 0, 0),
         render_res=[256, 256],
     ):
-
         renderer = pyrender.OffscreenRenderer(
             viewport_width=render_res[0], viewport_height=render_res[1], point_size=1.0
         )
@@ -364,7 +362,6 @@ class Renderer:
         render_res=[256, 256],
         focal_length=None,
     ):
-
         renderer = pyrender.OffscreenRenderer(
             viewport_width=render_res[0], viewport_height=render_res[1], point_size=1.0
         )

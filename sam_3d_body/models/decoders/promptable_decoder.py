@@ -1,6 +1,5 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
-import pickle
 from typing import Dict, Optional
 
 import torch

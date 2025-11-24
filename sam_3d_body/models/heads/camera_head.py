@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from sam_3d_body.models.modules.geometry_utils import perspective_projection
 
-from ..modules import get_intrinsic_matrix, to_2tuple
+from ..modules import to_2tuple
 from ..modules.transformer import FFN
 
 
