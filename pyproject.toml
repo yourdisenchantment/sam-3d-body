@@ -12,9 +12,3 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["sam_3d_body"]
-
-[dependency-groups]
-dev = [
-    "black[jupyter]>=25.11.0",
-    "ruff>=0.14.6",
-]
