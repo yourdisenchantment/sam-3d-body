@@ -1,5 +1,8 @@
 import sys
 import os
+import shutil
+import time
+import gc
 import gradio as gr
 import torch
 import cv2
@@ -10,26 +13,33 @@ import trimesh.creation
 import trimesh.util
 import uuid
 from pathlib import Path
+from loguru import logger  # Красивые логи
 
-# Добавляем путь для импортов
+# Настройка логера
+logger.remove()
+logger.add(
+    sys.stderr,
+    format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{message}</cyan>",
+)
+
 sys.path.append(os.getcwd())
-
 from sam_3d_body import load_sam_3d_body, SAM3DBodyEstimator
 
-# Пытаемся подключить детектор (так как мы ставили detectron2)
+# Детектор
 try:
     from tools.build_detector import HumanDetector
 
     HAS_DETECTOR = True
 except ImportError:
-    print("⚠️ Detectron2 не найден или HumanDetector недоступен.")
     HAS_DETECTOR = False
 
 # --- КОНФИГУРАЦИЯ ---
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 CHECKPOINT_DIR = Path("checkpoints/sam-3d-body-dinov3")
+OUTPUT_ROOT = Path("output")
+OUTPUT_ROOT.mkdir(exist_ok=True)
 
-# Иерархия родителей SMPL (для рисования костей)
+# Топология
 SMPL_PARENTS = [
     -1,
     0,
@@ -53,67 +63,128 @@ SMPL_PARENTS = [
     17,
     18,
     19,
-    20,
-    21,
+]
+KEYPOINT_NAMES = {
+    0: "nose",
+    1: "left_eye",
+    2: "right_eye",
+    3: "left_ear",
+    4: "right_ear",
+    5: "left_shoulder",
+    6: "right_shoulder",
+    9: "left_hip",
+    10: "right_hip",
+    69: "neck",
+    7: "left_elbow",
+    8: "right_elbow",
+    62: "left_wrist",
+    41: "right_wrist",
+    11: "left_knee",
+    12: "right_knee",
+    13: "left_ankle",
+    14: "right_ankle",
+    15: "left_big_toe",
+    16: "left_small_toe",
+    17: "left_heel",
+    18: "right_big_toe",
+    19: "right_small_toe",
+    20: "right_heel",
+}
+NAME_TO_IDX = {v: k for k, v in KEYPOINT_NAMES.items()}
+LINKS_NAMES = [
+    ("left_hip", "right_hip"),
+    ("left_hip", "left_shoulder"),
+    ("right_hip", "right_shoulder"),
+    ("left_shoulder", "neck"),
+    ("right_shoulder", "neck"),
+    ("neck", "nose"),
+    ("nose", "left_eye"),
+    ("nose", "right_eye"),
+    ("left_eye", "left_ear"),
+    ("right_eye", "right_ear"),
+    ("left_shoulder", "left_elbow"),
+    ("left_elbow", "left_wrist"),
+    ("right_shoulder", "right_elbow"),
+    ("right_elbow", "right_wrist"),
+    ("left_hip", "left_knee"),
+    ("left_knee", "left_ankle"),
+    ("right_hip", "right_knee"),
+    ("right_knee", "right_ankle"),
+    ("left_ankle", "left_heel"),
+    ("left_ankle", "left_big_toe"),
+    ("left_big_toe", "left_small_toe"),
+    ("left_heel", "left_small_toe"),
+    ("right_ankle", "right_heel"),
+    ("right_ankle", "right_big_toe"),
+    ("right_big_toe", "right_small_toe"),
+    ("right_heel", "right_small_toe"),
+]
+SKELETON_EDGES = [
+    (NAME_TO_IDX[s], NAME_TO_IDX[e])
+    for s, e in LINKS_NAMES
+    if s in NAME_TO_IDX and e in NAME_TO_IDX
 ]
 
-# Цвета (R, G, B, A)
-COLOR_SKELETON = [255, 50, 50, 255]  # Ярко-красный, непрозрачный
-COLOR_SKIN = [200, 200, 200, 100]  # Серый, полупрозрачный
+COLOR_SKIN = [200, 200, 255, 120]
+COLOR_SKELETON = [255, 50, 50, 255]
 
 
-def find_paths():
-    if not CHECKPOINT_DIR.exists():
-        raise FileNotFoundError(f"Нет папки {CHECKPOINT_DIR}")
+# --- MONITORING UTILS ---
+def log_gpu_stats():
+    if torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated() / 1024**3
+        reserved = torch.cuda.memory_reserved() / 1024**3
+        logger.info(f"GPU VRAM: Used {allocated:.2f} GB | Reserved {reserved:.2f} GB")
 
-    # Ищем веса
-    files = (
-        list(CHECKPOINT_DIR.glob("*.ckpt"))
-        + list(CHECKPOINT_DIR.glob("*.pth"))
-        + list(CHECKPOINT_DIR.glob("*.safetensors"))
-    )
-    files.sort(key=lambda x: x.stat().st_size, reverse=True)
-    if not files:
-        raise FileNotFoundError("Нет весов модели!")
 
-    # Ищем Asset
-    mhr = CHECKPOINT_DIR / "assets" / "mhr_model.pt"
-    if not mhr.exists():
-        mhr = CHECKPOINT_DIR / "mhr_model.pt"
-
-    return str(files[0]), str(mhr)
+def free_memory():
+    """Принудительная очистка памяти"""
+    gc.collect()
+    torch.cuda.empty_cache()
 
 
 # --- ЗАГРУЗКА ---
-print(f"⏳ Инициализация системы на {DEVICE}...")
+def find_paths():
+    if not CHECKPOINT_DIR.exists():
+        raise FileNotFoundError(f"Нет папки {CHECKPOINT_DIR}")
+    files = sorted(
+        list(CHECKPOINT_DIR.glob("*.ckpt"))
+        + list(CHECKPOINT_DIR.glob("*.pth"))
+        + list(CHECKPOINT_DIR.glob("*.safetensors")),
+        key=lambda x: x.stat().st_size,
+        reverse=True,
+    )
+    if not files:
+        raise FileNotFoundError("Нет весов модели!")
+    mhr = CHECKPOINT_DIR / "assets" / "mhr_model.pt"
+    if not mhr.exists():
+        mhr = CHECKPOINT_DIR / "mhr_model.pt"
+    return str(files[0]), str(mhr)
+
+
+logger.info(f"⏳ Инициализация на {DEVICE}...")
 try:
     c_path, m_path = find_paths()
-    print(f"📂 Load: {Path(c_path).name}")
-
-    # Загружаем модель
     model, cfg = load_sam_3d_body(c_path, device=DEVICE, mhr_path=m_path)
 
-    # Загружаем детектор
     det = None
     if HAS_DETECTOR:
-        print("🕵️ Запускаем HumanDetector (ViTDet)...")
         try:
             det = HumanDetector(name="vitdet", device=DEVICE)
-            print("✅ Детектор готов!")
-        except Exception as e:
-            print(f"⚠️ Ошибка детектора: {e}")
+            logger.success("Детектор (ViTDet) готов")
+        except:
+            pass
 
     estimator = SAM3DBodyEstimator(
         sam_3d_body_model=model, model_cfg=cfg, human_detector=det
     )
-    print("🚀 Система полностью готова!")
-
+    logger.success("Система готова к работе!")
+    log_gpu_stats()
 except Exception as e:
-    print(f"❌ Критическая ошибка запуска: {e}")
+    logger.critical(f"Ошибка запуска: {e}")
     exit(1)
 
 
-# --- УТИЛИТЫ ---
 def serialize(obj):
     if isinstance(obj, torch.Tensor):
         return obj.detach().cpu().numpy().tolist()
@@ -123,137 +194,238 @@ def serialize(obj):
 
 
 def create_skeleton_mesh(joints):
-    """Строит геометрию скелета (сферы + цилиндры)"""
     parts = []
-    limit = min(len(joints), len(SMPL_PARENTS))
-
+    limit = min(len(joints), 70)  # MHR70 limit
     for i in range(limit):
-        loc = joints[i]
-
-        # Сустав (Сфера)
-        sphere = trimesh.creation.icosphere(radius=0.035, subdivisions=1)
-        sphere.apply_translation(loc)
+        if i not in KEYPOINT_NAMES:
+            continue
+        radius = 0.035 if i in [0, 69] else 0.025
+        sphere = trimesh.creation.icosphere(radius=radius, subdivisions=1)
+        sphere.apply_translation(joints[i])
         parts.append(sphere)
-
-        # Кость (Цилиндр)
-        parent_idx = SMPL_PARENTS[i]
-        if parent_idx != -1 and parent_idx < len(joints):
+    for start, end in SKELETON_EDGES:
+        if start < len(joints) and end < len(joints):
             bone = trimesh.creation.cylinder(
-                radius=0.02, segment=[loc, joints[parent_idx]]
+                radius=0.015, segment=[joints[start], joints[end]]
             )
             parts.append(bone)
-
     if not parts:
         return None
-
-    # Объединяем в один меш для производительности
-    skeleton = trimesh.util.concatenate(parts)
-    skeleton.visual.face_colors = COLOR_SKELETON
-    return skeleton
+    skel = trimesh.util.concatenate(parts)
+    skel.visual.face_colors = COLOR_SKELETON
+    return skel
 
 
-def run_inference(input_image):
-    if input_image is None:
-        return None, None
+def process_single_image(image_path, is_warmup=False):
+    start_time = time.time()
 
-    # Генерируем уникальное имя, чтобы браузер не кэшировал старую модель
-    uid = uuid.uuid4().hex[:6]
-    temp_img = f"temp_{uid}.jpg"
-    glb_out = f"result_{uid}.glb"
-    json_out = f"skeleton_{uid}.json"
+    if is_warmup:
+        uid = "warmup"
+        save_dir = OUTPUT_ROOT / "warmup"
+    else:
+        uid = uuid.uuid4().hex[:6]
+        filename_stem = Path(image_path).stem
+        save_dir = OUTPUT_ROOT / f"{filename_stem}_{uid}"
 
-    print(f"\n📸 Обработка запроса {uid}...")
+    if not is_warmup:
+        save_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy(image_path, save_dir / Path(image_path).name)
+        logger.info(f"📸 Обработка: {Path(image_path).name} (ID: {uid})")
 
-    # Конвертация в BGR
-    cv2.imwrite(temp_img, cv2.cvtColor(input_image, cv2.COLOR_RGB2BGR))
-
+    # === INFERENCE ===
     outputs = []
     try:
-        # Если есть детектор, bbox_thr отсечет мусор.
-        # Если детектора нет, попытается взять всю картинку.
-        outputs = estimator.process_one_image(temp_img, bbox_thr=0.5)
+        # Используем inference_mode для скорости и экономии памяти
+        with torch.inference_mode():
+            outputs = estimator.process_one_image(image_path, bbox_thr=0.5)
     except Exception as e:
-        print(f"Ошибка инференса: {e}")
-
-    # Удаляем времянку
-    if os.path.exists(temp_img):
-        os.remove(temp_img)
+        if not is_warmup:
+            logger.error(f"Ошибка инференса: {e}")
+        return None, None, None, None
 
     if not outputs:
-        print("⚠️ Людей не найдено.")
-        return None, None
+        if not is_warmup:
+            logger.warning("⚠️ Людей не найдено")
+        return None, None, None, None
 
-    print(f"✅ Найдено людей: {len(outputs)}")
-    person = outputs[0]  # Берем первого
+    if not is_warmup:
+        logger.info(f"✅ Найдено людей: {len(outputs)}")
 
-    # --- 1. JSON Export ---
-    json_data = {"joints_3d": []}
-    joints_np = None
+    # === 3D BUILD ===
+    all_json = []
+    meshes_full, meshes_body, meshes_skel = [], [], []
 
-    if "pred_joints" in person:
-        json_data["joints_3d"] = serialize(person["pred_joints"])
-        joints_np = person["pred_joints"].detach().cpu().numpy()
-    elif "joints" in person:
-        json_data["joints_3d"] = serialize(person["joints"])
-        joints_np = person["joints"].detach().cpu().numpy()
+    for i, person in enumerate(outputs):
+        p_json = {"id": i}
+        joints_np = None
+        cam_t = np.array([0, 0, 0])
 
-    with open(json_out, "w") as f:
-        json.dump(json_data, f, indent=2)
+        # Joints
+        for key in ["pred_keypoints_3d", "pred_joints"]:
+            if key in person:
+                data = person[key]
+                if isinstance(data, torch.Tensor):
+                    data = data.detach().cpu().numpy()
+                if len(data.shape) == 3:
+                    data = data[0]
+                joints_np = data
+                p_json["joints_3d"] = serialize(joints_np)
+                break
 
-    # --- 2. 3D GLB Export ---
-    v = person.get("pred_vertices")
-    f = estimator.faces
+        # Cam
+        if "pred_cam_t" in person:
+            t = person["pred_cam_t"]
+            if isinstance(t, torch.Tensor):
+                t = t.detach().cpu().numpy()
+            if len(t.shape) == 2:
+                t = t[0]
+            cam_t = t
 
-    scene_meshes = []
+        # Meshes
+        v = person.get("pred_vertices")
+        f = estimator.faces
+        if v is not None:
+            if isinstance(v, torch.Tensor):
+                v = v.detach().cpu().numpy()
+            if len(v.shape) == 3:
+                v = v[0]
+            if isinstance(f, torch.Tensor):
+                f = f.detach().cpu().numpy()
 
-    # Тело
-    if v is not None and f is not None:
-        if isinstance(v, torch.Tensor):
-            v = v.detach().cpu().numpy()
-        if len(v.shape) == 3:
-            v = v[0]
-        if isinstance(f, torch.Tensor):
-            f = f.detach().cpu().numpy()
+            # Сдвиг в мировые координаты
+            v_world = v + cam_t
+            body = trimesh.Trimesh(vertices=v_world, faces=f)
+            body.visual.face_colors = COLOR_SKIN
 
-        body = trimesh.Trimesh(vertices=v, faces=f)
-        body.visual.face_colors = COLOR_SKIN  # Прозрачность
-        scene_meshes.append(body)
+            meshes_full.append(body)
+            meshes_body.append(body)
 
-    # Скелет
-    if joints_np is not None:
-        if len(joints_np.shape) == 3:
-            joints_np = joints_np[0]
-        skel = create_skeleton_mesh(joints_np)
-        if skel:
-            scene_meshes.append(skel)
+            if joints_np is not None:
+                skel = create_skeleton_mesh(joints_np + cam_t)
+                if skel:
+                    meshes_full.append(skel)
+                    meshes_skel.append(skel)
 
-    if scene_meshes:
-        scene = trimesh.Scene(scene_meshes)
-        # Поворачиваем, чтобы стоял вертикально (SMPL fix)
+        all_json.append(p_json)
+
+    if is_warmup:
+        return None
+
+    # === EXPORT ===
+    path_full = save_dir / "scene_full.glb"
+    path_body = save_dir / "scene_body.glb"
+    path_skel = save_dir / "scene_skel.glb"
+    path_json = save_dir / "data.json"
+
+    with open(path_json, "w") as f:
+        json.dump(all_json, f, indent=2)
+
+    def export_scene(m_list, path):
+        if not m_list:
+            return None
+        scene = trimesh.Scene(m_list)
         rot = trimesh.transformations.rotation_matrix(np.radians(180), [1, 0, 0])
         scene.apply_transform(rot)
+        scene.export(path)
+        return str(path.absolute())
 
-        scene.export(glb_out)
-        print(f"💾 Модель сохранена: {glb_out}")
-        return os.path.abspath(glb_out), os.path.abspath(json_out)
-    else:
-        return None, None
+    p1 = export_scene(meshes_full, path_full)
+    p2 = export_scene(meshes_body, path_body)
+    p3 = export_scene(meshes_skel, path_skel)
 
+    elapsed = time.time() - start_time
+    logger.info(f"⏱️ Время обработки: {elapsed:.2f} сек")
+    log_gpu_stats()
+
+    # Очищаем память после тяжелого прохода (полезно для батчей)
+    free_memory()
+
+    return (
+        {"full": p1, "body": p2, "skel": p3},
+        str(path_json.absolute()),
+        p1,
+        str(path_json.absolute()),
+    )
+
+
+# --- GRADIO HANDLERS ---
+def on_generate(img):
+    if img is None:
+        return None, None, None
+    paths, json_path, init_glb, init_json = process_single_image(img)
+    return paths, init_json, init_glb
+
+
+def update_view(mode, paths_dict):
+    if not paths_dict:
+        return None
+    map_mode = {"Full View": "full", "Body Only": "body", "Skeleton Only": "skel"}
+    key = map_mode.get(mode, "full")
+    return paths_dict.get(key)
+
+
+# --- WARMUP ---
+def warmup():
+    logger.info("🔥 Начинаем прогрев (Warmup)...")
+    dummy = np.zeros((1024, 1024, 3), dtype=np.uint8)
+    cv2.imwrite("warmup.jpg", dummy)
+    try:
+        process_single_image("warmup.jpg", is_warmup=True)
+        process_single_image("warmup.jpg", is_warmup=True)
+        logger.success("Прогрев завершен!")
+    except Exception as e:
+        logger.warning(f"Ошибка прогрева: {e}")
+    if os.path.exists("warmup.jpg"):
+        os.remove("warmup.jpg")
+    free_memory()
+
+
+warmup()
 
 # --- UI ---
-with gr.Blocks(title="SAM 3D Body") as demo:
-    gr.Markdown("# 🧍 SAM 3D Body Local")
-    with gr.Row():
-        inp = gr.Image(type="numpy", label="Input Image")
-        with gr.Column():
-            # clear_color управляет фоном вьювера (светло-серый)
-            out_3d = gr.Model3D(label="3D Result", clear_color=[0.9, 0.9, 0.9, 1.0])
-            out_json = gr.File(label="Skeleton JSON")
+with gr.Blocks(title="SAM 3D Body Pro") as demo:
+    gr.Markdown("# 🧍 SAM 3D Body Workspace (Pro)")
 
-    gr.Button("Generate 3D", variant="primary").click(
-        run_inference, inp, [out_3d, out_json]
+    paths_state = gr.State()
+
+    with gr.Row():
+        with gr.Column(scale=1):
+            inp = gr.Image(type="filepath", label="Input")
+            btn_gen = gr.Button("🚀 Generate 3D", variant="primary")
+            # Кнопка отмены (работает для прерывания загрузки/очереди)
+            btn_cancel = gr.Button("🛑 Stop / Clear", variant="stop")
+
+        with gr.Column(scale=2):
+            out_3d = gr.Model3D(
+                label="3D Result", clear_color=[0.9, 0.9, 0.9, 1.0], interactive=True
+            )
+            with gr.Row():
+                btn_full = gr.Button("Full View")
+                btn_body = gr.Button("Body Only")
+                btn_skel = gr.Button("Skeleton Only")
+            out_json = gr.File(label="JSON Data")
+
+    # События
+    gen_event = btn_gen.click(
+        on_generate, inputs=inp, outputs=[paths_state, out_json, out_3d]
+    )
+
+    # Кнопка Stop прерывает генерацию и очищает выходы
+    btn_cancel.click(fn=None, inputs=None, outputs=None, cancels=[gen_event])
+    btn_cancel.click(
+        lambda: (None, None, None, None), outputs=[inp, out_3d, out_json, paths_state]
+    )
+
+    # Переключатели
+    btn_full.click(
+        lambda s: update_view("Full View", s), inputs=paths_state, outputs=out_3d
+    )
+    btn_body.click(
+        lambda s: update_view("Body Only", s), inputs=paths_state, outputs=out_3d
+    )
+    btn_skel.click(
+        lambda s: update_view("Skeleton Only", s), inputs=paths_state, outputs=out_3d
     )
 
 if __name__ == "__main__":
-    # share=True дает публичную ссылку
     demo.launch(server_name="0.0.0.0", server_port=7860, share=True)
