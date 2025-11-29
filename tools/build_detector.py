@@ -1,3 +1,4 @@
+# tools/build_detector.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 import os

@@ -1,3 +1,4 @@
+# sam_3d_body/metadata/mhr70.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 """The first 70 of 308 MHR keypoints, ignoring the rest for face keypoints"""

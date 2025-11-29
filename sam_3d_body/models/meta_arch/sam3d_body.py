@@ -1,3 +1,4 @@
+# sam_3d_body/models/meta_arch/sam3d_body.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 from typing import Any, Dict, Optional, Tuple
@@ -1196,7 +1197,7 @@ class SAM3DBody(BaseModel):
         self,
         img,
         batch: Dict,
-        inference_type: str = "full",
+        inference_type: str = "full",  # <- Важный для оптимизации момент
         transform_hand: Any = None,
         thresh_wrist_angle=1.4,
     ):

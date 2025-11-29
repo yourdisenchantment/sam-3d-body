@@ -1,3 +1,4 @@
+# sam_3d_body/models/decoders/keypoint_prompt_sampler.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 import random

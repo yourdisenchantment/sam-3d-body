@@ -1,3 +1,4 @@
+# sam_3d_body/models/modules/drop_path.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 import torch

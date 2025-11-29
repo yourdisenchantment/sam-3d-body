@@ -1,3 +1,4 @@
+# tools/vis_utils.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 import numpy as np
 import cv2

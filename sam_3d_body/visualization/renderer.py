@@ -1,3 +1,4 @@
+# sam_3d_body/visualization/renderer.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 import os

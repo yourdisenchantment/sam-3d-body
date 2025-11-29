@@ -1,3 +1,4 @@
+# sam_3d_body/visualization/skeleton_visualizer.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 from typing import Dict, Optional, Tuple, Union

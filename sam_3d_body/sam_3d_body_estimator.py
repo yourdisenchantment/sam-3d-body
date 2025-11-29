@@ -1,3 +1,4 @@
+# sam_3d_body/sam_3d_body_estimator.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 from typing import Optional, Union
 
@@ -94,7 +95,7 @@ class SAM3DBodyEstimator:
         self.image_embeddings = None
         self.output = None
         self.prev_prompt = []
-        torch.cuda.empty_cache()
+        # torch.cuda.empty_cache()  <- Мой коммент
 
         if type(img) == str:
             img = load_image(img, backend="cv2", image_format="bgr")

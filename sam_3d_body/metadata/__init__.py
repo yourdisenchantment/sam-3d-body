@@ -1,3 +1,4 @@
+# sam_3d_body/metadata/__init__.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 import os

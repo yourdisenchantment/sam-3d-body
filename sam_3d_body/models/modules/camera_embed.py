@@ -1,3 +1,4 @@
+# sam_3d_body/models/modules/camera_embed.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 import einops

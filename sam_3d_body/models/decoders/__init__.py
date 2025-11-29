@@ -1,3 +1,4 @@
+# sam_3d_body/models/decoders/__init__.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 from .keypoint_prompt_sampler import build_keypoint_sampler

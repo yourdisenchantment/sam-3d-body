@@ -1,3 +1,4 @@
+# sam_3d_body/models/decoders/promptable_decoder.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 from typing import Dict, Optional

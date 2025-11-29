@@ -1,3 +1,4 @@
+# tools/build_sam.py
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
 import torch
