@@ -333,7 +333,7 @@ class MHRHead(nn.Module):
 
         # Some existing code to get joints and fix camera system
         verts, j3d, jcoords, mhr_model_params, joint_global_rots = output
-        j3d = j3d[:, :70]  # 308 --> 70 keypoints
+        # j3d = j3d[:, :70]  # 308 --> 70 keypoints
 
         if verts is not None:
             verts[..., [1, 2]] *= -1  # Camera system difference
